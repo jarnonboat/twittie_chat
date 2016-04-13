@@ -1,0 +1,20 @@
+extends layout
+
+block content
+    .container-fluid(class='fill')
+        div#home(class='chat-content')
+            .col-xs-10(class='main')
+                h1.title
+                    .room-title Main Room
+                    #profile
+                .content(id="conversation", class='fheight')
+                .controls(class='form-inline')
+                    .col-xs-10
+                        input#message(class='form-control full')
+                    .col-xs-2
+                        button#send(type='button', class='btn btn-success full') Send
+            .col-xs-2(id='user')
+                input#newroomname(class='form-control full')
+                button#newroom(type='button', class='btn btn-primary full') Create Room
+                .heading Room list
+                ul#user-list
