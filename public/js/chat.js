@@ -185,7 +185,7 @@ $(window).load(function() {
 
     // Close login dialog
     loginDialog.close();
-
+    $('#user-list').empty();
     // Main chat room
     if (!$('#main_room').is(':visible')) {
       var html = '<li class="row-user active" id="main_room" data-rid="' + MAIN_ROOM + '"><span class="user_name">Main Room</span><span class="unread">0</span></li>';
@@ -218,9 +218,10 @@ $(window).load(function() {
     //     $('#user-list').append(html);
     //   }
     // }
-
     // Display message history
-    socket.emit('load_message', _clientId, MAIN_ROOM);
+    $('#joinroom').hide();
+    $('#leaveroom').hide();
+    socket.emit('load_message', _clientId,_userId, MAIN_ROOM);
   });
 
   socket.on('updateroom',function(_rooms){
@@ -240,6 +241,43 @@ $(window).load(function() {
 
   });
 
+  socket.on('updatesend',function(btnstatus){
+    console.log('button update!!');
+    if(btnstatus == 'disable'){
+      $('#send').prop('disabled', true);
+      $('#message').prop('disabled', true);
+    }
+    else {
+      $('#send').prop('disabled', false);
+      $('#message').prop('disabled', false);
+    }
+  });
+
+  socket.on('updateroomStatus',function(status){
+    if(currRoomId == MAIN_ROOM){
+      $('#joinroom').hide();
+      $('#leaveroom').hide();
+    }else{
+      //console.log('Im back');
+        switch (status) {
+        case "joined":
+            $('#joinroom').hide();
+            $('#leaveroom').show();
+            console.log("joined");
+            break;
+        case "leaved":
+            $('#leaveroom').hide();
+            $('#joinroom').show();
+            console.log("leaved");
+            break;
+        case "paused":
+            $('#joinroom').show();
+            $('#leaveroom').show();
+            console.log("paused");
+            break;
+        }
+    }
+  });
   /**
   * _clientId id of current user socket
   * room_id room_id that user want to connect to
@@ -251,7 +289,7 @@ $(window).load(function() {
 
       console.log('Subscribe Room ' + currRoomId);
       // Load messages for this room
-      socket.emit('load_message', _clientId, currRoomId);
+      socket.emit('load_message', _clientId,_userId, currRoomId);
       $('#active_room').text(currRoomId);
     }
   });
@@ -302,42 +340,43 @@ $(window).load(function() {
   /**
   * User interaction. Active private chat for user clicked
   */
+
+  var click_roomId;
+  var click_clientId;
   $('#user').on('click', '.row-user', function () {
     // Hide unread notify
     $(this).find('.unread').text('').hide();
-
-    var roomId = $(this).attr('data-rid');
-    var _clientId = $(this).attr('id'); // Client ID of the socket connected
+    $('#conversation').empty();
+    click_roomId = $(this).attr('data-rid');
+    click_clientId = $(this).attr('id'); // Client ID of the socket connected
     var roomTitle = $(this).find('.user_name').text();
     //console.log(roomId,_clientId,roomTitle);
     $('.room-title').text(roomTitle);
 
     $('#user-list li').removeClass('active');
 
-    $('#user-list li[data-rid=' + roomId + ']').addClass('active');
+    $('#user-list li[data-rid=' + click_roomId + ']').addClass('active');
 
-    var activeRoom = roomId;
-    // var activeRoomId;
-    // if(roomId == MAIN_ROOM){
-    //   activeRoomId = 'main_room';
-    // }else {
-    //   activeRoomId = roomId+'_1';
+    socket.emit('clickroom',_userId,click_roomId);
+
+    var activeRoom = click_roomId;
+    currRoomId = activeRoom;
+
+    socket.emit('load_message',click_clientId,_userId,click_roomId);
+
+    // if ($('#' + activeRoom).length == 0) {
+    //   currRoomId = activeRoom;
+    //     // Change room for private chat
+    // //    socket.emit('subscribe', _userId, _clientId, roomId);
+    // } else {
+    //   // Only active current private chat
+    //   currRoomId = activeRoom;
+    //
+    //   // Load messages for this room
+    // //  socket.emit('load_message', _clientId, currRoomId);
+    //   $('#active_room').text(currRoomId);
     // }
-    // console.log(activeRoomId);
-    // console.log($('#'+activeRoomId).length);
-    if ($('#' + activeRoom).length == 0) {
-        // Change room for private chat
-        socket.emit('subscribe', _userId, _clientId, roomId);
-    } else {
-      // Only active current private chat
-      currRoomId = activeRoom;
-
-      // Load messages for this room
-      socket.emit('load_message', _clientId, currRoomId);
-      $('#active_room').text(currRoomId);
-    }
-
-    $('#message').focus();
+     $('#message').focus();
   });
 
   $('#newroom').click(function(){
@@ -351,6 +390,20 @@ $(window).load(function() {
     }
   });
 
+  $('#joinroom').click(function(){
+    //$('#joinroom').hide();
+    $('#send').prop('disabled', false);
+    $('#message').prop('disabled', false);
+    socket.emit('subscribe', _userId, click_clientId, click_roomId);
+    $('#message').focus();
+  });
+
+  $('#leaveroom').click(function(){
+    $('#send').prop('disabled', true);
+    $('#message').prop('disabled', true);
+    $('#conversation').empty();
+    socket.emit('unsubscribe',_userId,click_clientId,click_roomId);
+  });
   // User click Send button
   $('#send').click(function() {
     var text = field.val().trim();
@@ -375,6 +428,7 @@ $(window).load(function() {
     }
   });
 });
+
 
 // Show desktop notification
 // $(function() {

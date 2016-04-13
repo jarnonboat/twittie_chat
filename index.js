@@ -137,18 +137,6 @@ io.sockets.on('connection', function (socket) {
   socket.on('addroom',function(roomId,currentId){
     if(rooms.indexOf(roomId) == -1){
       rooms.push(roomId);
-      //add to db;
-      var newroom = new Room({
-        room_name: roomId,
-        user: currentId,
-        type: "join"
-      });
-
-      newroom.save(function(err){
-        if(err != null){
-          console.log('There is an error creating room' + err);
-        }
-      });
     }else{
       socket.emit('exception', {message: 'This room is already existed'});
     }
@@ -156,11 +144,41 @@ io.sockets.on('connection', function (socket) {
     socket.emit('updateroom',rooms);
   });
 
+  //check user status in clicked room
+  socket.on('clickroom',function(_clientUserId,roomId){
+    var isCurrentId_in_roomId;
+    if(roomId != mainRoom){
+      console.log("Find : " + roomId + " , "+_clientUserId);
+      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,massages){
+        if(massages.length == 0){
+          isCurrentId_in_roomId = false;
+          socket.emit('updateroomStatus',"leaved");
+          socket.emit('updatesend','disable');
+        }
+        else {
+          isCurrentId_in_roomId = true;
+          socket.emit('updateroomStatus',"joined");
+          socket.emit('updatesend','enable');
+        }
+      });
+    }else{
+      socket.emit('updateroomStatus',"joined");
+      socket.emit('updatesend','enable');
+    }
+    // if(isCurrentId_in_roomId == true){
+    //   socket.emit('updateroomStatus',"joined");
+    //   socket.emit('updatesend','enable');
+    // }else{
+    //   console.log("im here");
+    //   socket.emit('updateroomStatus',"leaved");
+    //   socket.emit('updatesend','disable');
+    // }
+  });
+
   // Load message for rooms
-  socket.on('load_message', function (_clientId, roomId) {
+  socket.on('load_message', function (_clientId,_clientUserId, roomId) {
     console.log('Loading message for room ' + roomId);
     //var rooms = roomId.split('_');
-
     // if (rooms.length == 2) {
     //   var room2 = rooms[1] + '_' + rooms[0];
     //   console.log('Load from ' + roomId + ' - ' + room2);
@@ -168,9 +186,19 @@ io.sockets.on('connection', function (socket) {
     //     socket.emit('display_message', _clientId, messages);
     //   });
     // } else {
+    if(roomId == mainRoom){
       Message.find({ room_id: roomId }).sort({'created_at': 'asc'}).exec(function (err, messages) {
         socket.emit('display_message', _clientId, messages);
       });
+    }else{
+      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,massages){
+        if(massages.length != 0){
+          Message.find({ room_id: roomId }).sort({'created_at': 'asc'}).exec(function (err, messages) {
+            socket.emit('display_message', _clientId, messages);
+          });
+        }
+      });
+    }
   });
 
   // Trigger on send event
@@ -194,19 +222,50 @@ io.sockets.on('connection', function (socket) {
   });
 
   socket.on('subscribe', function (_clientUserId, clientId, room_id) {
+    //add this user to db
+
     if (room_id != mainRoom) {
       socket.join(room_id);
+      socket.emit('updateroomStatus',"joined");
       if (rooms.indexOf(room_id) == -1) {
         // Create private chat between this socket and client
         //userSockets[clientId].join(room_id);
         rooms.push(room_id);
-
       }
+
+      //add to db;
+      var newroom = new Room({
+        room_name: room_id,
+        user: _clientUserId,
+        type: "joined"
+      });
+
+      newroom.save(function(err){
+        if(err != null){
+          console.log('There is an error creating room' + err);
+        }
+      });
+
       console.log(rooms);
     }
 
     // Create message content to hold between these two users
     io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
+  });
+
+  socket.on('pause',function(){
+    //add user pause to db & condtion display msg
+  });
+  socket.on('unpause',function(){
+    //add user pause to db & condtion display msg
+  });
+  socket.on('unsubscribe',function(_clientUserId,clientId,room_id){
+    //delete this user from this room in db
+    socket.leave(room_id);
+    socket.emit('updateroomStatus',"leaved");
+    Room.remove({room_name:room_id,user:_clientUserId,type:"joined"}).exec(function(err,messages){
+    });
+    console.log("user : " + _clientUserId +' has left room :'+room_id);
   });
 
   // Listen for regist action
