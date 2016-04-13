@@ -1,3 +1,10 @@
+/*
+//  index.js
+//  Twittie Chat
+//
+//  Created by Boat on 13/04/15.
+*/
+
 var express = require("express");
 var mongoose = require('mongoose');
 var assert = require("assert");
@@ -63,6 +70,7 @@ var roomSchema = new Schema({
   room_name: String,
   user: String,
   type: String,
+  joined_at: Date,
   created_at: Date
 });
 
@@ -191,9 +199,9 @@ io.sockets.on('connection', function (socket) {
         socket.emit('display_message', _clientId, messages);
       });
     }else{
-      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,massages){
-        if(massages.length != 0){
-          Message.find({ room_id: roomId }).sort({'created_at': 'asc'}).exec(function (err, messages) {
+      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,data){
+        if(data.length != 0){
+          Message.find({ room_id: roomId,created_at:{$gte:data[0].joined_at} }).sort({'created_at': 'asc'}).exec(function (err, messages) {
             socket.emit('display_message', _clientId, messages);
           });
         }
@@ -232,12 +240,13 @@ io.sockets.on('connection', function (socket) {
         //userSockets[clientId].join(room_id);
         rooms.push(room_id);
       }
-
+      var currentDate = new Date();
       //add to db;
       var newroom = new Room({
         room_name: room_id,
         user: _clientUserId,
-        type: "joined"
+        type: "joined",
+        joined_at: currentDate
       });
 
       newroom.save(function(err){

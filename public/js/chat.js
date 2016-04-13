@@ -1,5 +1,8 @@
-/**
-* TODO: Stream simple music between clients
+/*
+//  chat.js
+//  Twittie Chat
+//
+//  Created by Boat on 13/04/15.
 */
 
 // SERVER address and port
