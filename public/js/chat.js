@@ -224,6 +224,8 @@ $(window).load(function() {
     // Display message history
     $('#joinroom').hide();
     $('#leaveroom').hide();
+    $('#pause').hide();
+    $('#resume').hide();
     socket.emit('load_message', _clientId,_userId, MAIN_ROOM);
   });
 
@@ -260,22 +262,30 @@ $(window).load(function() {
     if(currRoomId == MAIN_ROOM){
       $('#joinroom').hide();
       $('#leaveroom').hide();
+      $('#pause').hide();
+      $('#resume').hide();
     }else{
       //console.log('Im back');
         switch (status) {
         case "joined":
             $('#joinroom').hide();
             $('#leaveroom').show();
+            $('#pause').show();
+            $('#resume').hide();
             console.log("joined");
             break;
         case "leaved":
             $('#leaveroom').hide();
             $('#joinroom').show();
+            $('#pause').hide();
+            $('#resume').hide();
             console.log("leaved");
             break;
         case "paused":
-            $('#joinroom').show();
+            $('#joinroom').hide();
             $('#leaveroom').show();
+            $('#pause').hide();
+            $('#resume').show();
             console.log("paused");
             break;
         }
@@ -406,6 +416,20 @@ $(window).load(function() {
     $('#message').prop('disabled', true);
     $('#conversation').empty();
     socket.emit('unsubscribe',_userId,click_clientId,click_roomId);
+  });
+
+  $('#pause').click(function(){
+    $('#send').prop('disabled', true);
+    $('#message').prop('disabled', true);
+    socket.emit('pause',_userId,click_clientId,click_roomId);
+  });
+
+  $('#resume').click(function(){
+    $('#send').prop('disabled', false);
+    $('#message').prop('disabled', false);
+    socket.emit('resume', _userId, click_clientId, click_roomId);
+    socket.emit('load_message',click_clientId,_userId,click_roomId);
+    $('#message').focus();
   });
   // User click Send button
   $('#send').click(function() {

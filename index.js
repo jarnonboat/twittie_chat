@@ -70,6 +70,7 @@ var roomSchema = new Schema({
   room_name: String,
   user: String,
   type: String,
+  prev_joined_at: Date,
   joined_at: Date,
   created_at: Date
 });
@@ -154,19 +155,21 @@ io.sockets.on('connection', function (socket) {
 
   //check user status in clicked room
   socket.on('clickroom',function(_clientUserId,roomId){
-    var isCurrentId_in_roomId;
     if(roomId != mainRoom){
       console.log("Find : " + roomId + " , "+_clientUserId);
-      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,massages){
+      Room.find({room_name:roomId,user:_clientUserId}).exec(function(err,massages){
         if(massages.length == 0){
-          isCurrentId_in_roomId = false;
           socket.emit('updateroomStatus',"leaved");
           socket.emit('updatesend','disable');
         }
         else {
-          isCurrentId_in_roomId = true;
-          socket.emit('updateroomStatus',"joined");
-          socket.emit('updatesend','enable');
+          if(massages[0].type == 'joined'){
+            socket.emit('updateroomStatus',"joined");
+            socket.emit('updatesend','enable');
+          }else if(massages[0].type == 'paused'){
+            socket.emit('updateroomStatus',"paused");
+            socket.emit('updatesend','disable');
+          }
         }
       });
     }else{
@@ -199,11 +202,17 @@ io.sockets.on('connection', function (socket) {
         socket.emit('display_message', _clientId, messages);
       });
     }else{
-      Room.find({room_name:roomId,user:_clientUserId,type:"joined"}).exec(function(err,data){
+      Room.find({room_name:roomId,user:_clientUserId}).exec(function(err,data){
         if(data.length != 0){
-          Message.find({ room_id: roomId,created_at:{$gte:data[0].joined_at} }).sort({'created_at': 'asc'}).exec(function (err, messages) {
-            socket.emit('display_message', _clientId, messages);
-          });
+          if(data[0].type == 'joined'){
+            Message.find({ room_id: roomId,created_at:{$gte:data[0].joined_at} }).sort({'created_at': 'asc'}).exec(function (err, messages) {
+              socket.emit('display_message', _clientId, messages);
+            });
+          }else if(data[0].type == 'paused'){
+            Message.find({ room_id: roomId,created_at:{$lt:data[0].joined_at} }).sort({'created_at': 'asc'}).exec(function (err, messages) {
+              socket.emit('display_message', _clientId, messages);
+            });
+          }
         }
       });
     }
@@ -225,7 +234,6 @@ io.sockets.on('connection', function (socket) {
         console.log('There is an error saving data ' + err);
       }
     });
-
     io.sockets.in(data.room_id).emit('message', _clientUserId, _clientId, data);
   });
 
@@ -234,6 +242,7 @@ io.sockets.on('connection', function (socket) {
 
     if (room_id != mainRoom) {
       socket.join(room_id);
+      console.log("user : " + _clientUserId + "has joined : " + room_id );
       socket.emit('updateroomStatus',"joined");
       if (rooms.indexOf(room_id) == -1) {
         // Create private chat between this socket and client
@@ -246,6 +255,7 @@ io.sockets.on('connection', function (socket) {
         room_name: room_id,
         user: _clientUserId,
         type: "joined",
+        prev_joined_at: currentDate,
         joined_at: currentDate
       });
 
@@ -262,11 +272,57 @@ io.sockets.on('connection', function (socket) {
     io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
   });
 
-  socket.on('pause',function(){
+  socket.on('pause',function(_clientUserId, clientId, room_id){
     //add user pause to db & condtion display msg
+    if (room_id != mainRoom) {
+
+      console.log("user : " + _clientUserId + "has paused : " + room_id );
+      socket.emit('updateroomStatus',"paused");
+
+      var currentDate = new Date();
+      //add to db;
+      Room.find({room_name:room_id,user:_clientUserId,type:"joined"},function(err,data){
+        Room.update({room_name: room_id,user:_clientUserId,type:"joined"}, {
+            type : "paused",
+            prev_joined_at: data[0].joined_at,
+            joined_at: currentDate
+        }, function(err, numberAffected, rawResponse) {
+          if(err != null){
+            console.log('There is an error creating room' + err);
+          }
+        });
+      });
+
+      socket.leave(room_id);
+    }
+
+    // Create message content to hold between these two users
+    //io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
   });
-  socket.on('unpause',function(){
-    //add user pause to db & condtion display msg
+
+  socket.on('resume',function(_clientUserId, clientId, room_id){
+    if (room_id != mainRoom) {
+      console.log("user : " + _clientUserId + "has resumed to : " + room_id );
+      socket.emit('updateroomStatus',"joined");
+
+      var currentDate = new Date();
+      //add to db;
+      Room.find({room_name:room_id,user:_clientUserId,type:"paused"},function(err,data){
+          Room.update({room_name: room_id,user:_clientUserId,type:"paused"}, {
+              type : "joined",
+              joined_at: data[0].prev_joined_at,
+              prev_joined_at: currentDate
+          }, function(err, numberAffected, rawResponse) {
+            if(err != null){
+              console.log('There is an error resumeing room' + err);
+            }
+          });
+      });
+      socket.join(room_id);
+    }
+
+    // Create message content to hold between these two users
+    //io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
   });
   socket.on('unsubscribe',function(_clientUserId,clientId,room_id){
     //delete this user from this room in db
