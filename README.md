@@ -1,6 +1,6 @@
 # Nodejs chat applications
 
-A web chat applications including 1 main room chat, multiple private chat at the same time, save message history for the rest of applications, also provide desktop notification.
+A web chat applications, multiple room at the same time, save message history for the rest of applications
 
 ## Installation
 
