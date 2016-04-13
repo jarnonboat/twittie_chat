@@ -1,4 +1,4 @@
-# Nodejs chat applications
+# Twittie chat applications
 
 A web chat applications, multiple room at the same time, save message history for the rest of applications
 
