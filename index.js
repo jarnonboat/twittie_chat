@@ -176,27 +176,11 @@ io.sockets.on('connection', function (socket) {
       socket.emit('updateroomStatus',"joined");
       socket.emit('updatesend','enable');
     }
-    // if(isCurrentId_in_roomId == true){
-    //   socket.emit('updateroomStatus',"joined");
-    //   socket.emit('updatesend','enable');
-    // }else{
-    //   console.log("im here");
-    //   socket.emit('updateroomStatus',"leaved");
-    //   socket.emit('updatesend','disable');
-    // }
   });
 
   // Load message for rooms
   socket.on('load_message', function (_clientId,_clientUserId, roomId) {
     console.log('Loading message for room ' + roomId);
-    //var rooms = roomId.split('_');
-    // if (rooms.length == 2) {
-    //   var room2 = rooms[1] + '_' + rooms[0];
-    //   console.log('Load from ' + roomId + ' - ' + room2);
-    //   Message.find().or([{ room_id: roomId }, { room_id: room2}]).sort({'created_at': 'asc'}).exec(function (err, messages) {
-    //     socket.emit('display_message', _clientId, messages);
-    //   });
-    // } else {
     if(roomId == mainRoom){
       Message.find({ room_id: roomId }).sort({'created_at': 'asc'}).exec(function (err, messages) {
         socket.emit('display_message', _clientId, messages);
@@ -265,7 +249,7 @@ io.sockets.on('connection', function (socket) {
         }
       });
 
-      console.log(rooms);
+      console.log("Current Room List : " + rooms);
     }
 
     // Create message content to hold between these two users
@@ -296,8 +280,6 @@ io.sockets.on('connection', function (socket) {
       socket.leave(room_id);
     }
 
-    // Create message content to hold between these two users
-    //io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
   });
 
   socket.on('resume',function(_clientUserId, clientId, room_id){
@@ -320,9 +302,6 @@ io.sockets.on('connection', function (socket) {
       });
       socket.join(room_id);
     }
-
-    // Create message content to hold between these two users
-    //io.sockets.in(room_id).emit('subscribe', _clientId, room_id);
   });
   socket.on('unsubscribe',function(_clientUserId,clientId,room_id){
     //delete this user from this room in db

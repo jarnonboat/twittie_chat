@@ -35,9 +35,6 @@ $(window).load(function() {
   // Current client_id
   var clientId = null;
 
-  // All users connected
-  var users = [];
-
   // Current room_id. Default is MAIN_ROOM
   var currRoomId = MAIN_ROOM;
 
@@ -126,23 +123,12 @@ $(window).load(function() {
     //console.log(currRoomId);
     var room_id = data.room_id;
 
-    //var tempRoom = room_id.split('_');
-    //var tempRoomId = tempRoom.length == 2 ? tempRoom[1] + '_' + tempRoom[0] : '';
-
     if(data.message) {
-      //console.log(data.message);
       var cls = 'row';
       // Handle on destination client
       if (_clientId != clientId) {
         cls = 'row_other';
-      //  notifyMe(data);
-        // if not current room show unread แทน
-        // If not is MAIN_ROOM, show unread count message
-        // if(currRoomId != room_id){
-        //   var currUnread = $('#user-list li#'+room_id+' .unread').text();
-        //   currUnread++;
-        //   $('#user-list li#'+room_id+' .unread').text(currUnread).show();
-        // }
+        //  notifyMe(data);
 
         if (room_id == MAIN_ROOM) {
           if (currRoomId != MAIN_ROOM) {
@@ -151,7 +137,7 @@ $(window).load(function() {
             $('#user-list li#main_room .unread').text(currUnread).show();
           }
         } else if (currRoomId != room_id) {
-          // Show unread count message on private chat
+          // Show unread count message on chat
           var currUnread = $('#user-list li#'+room_id+'_1 .unread').text();
           currUnread++;
           $('#user-list li#'+room_id+'_1 .unread').text(currUnread).show();
@@ -159,7 +145,6 @@ $(window).load(function() {
       }
 
       if (currRoomId == room_id) {
-        //console.log(room_id,currRoomId);
         // Show message on screen
         var date = new Date();
         var html = '<div class="' + cls + '">' +
@@ -177,7 +162,6 @@ $(window).load(function() {
   /** Show user after logged in successfully
   * _clientUserId id of user on server database
   * _clientId id of current user socket
-  * _users array of all connected users
   */
   socket.on('show_user', function (_clientUserId, _clientId, _users,_rooms) {
     // Set clientId for the first time
@@ -190,43 +174,26 @@ $(window).load(function() {
     loginDialog.close();
     $('#user-list').empty();
     // Main chat room
-    if (!$('#main_room').is(':visible')) {
-      var html = '<li class="row-user active" id="main_room" data-rid="' + MAIN_ROOM + '"><span class="user_name">Main Room</span><span class="unread">0</span></li>';
-      $('#user-list').append(html);
-    }
-    users = _users;
-    $.each(_rooms, function(key, value){
-      if(value != MAIN_ROOM){
+    $.each(_rooms, function(key, value) {
+			if(value == MAIN_ROOM){
+        var html = '<li class="row-user" id="main_room" data-rid="' + MAIN_ROOM + '"><span class="user_name">Main Room</span><span class="unread">0</span></li>';
+        $('#user-list').append(html);
+			}
+			else {
         var html = '<li class="row-user" id="'+value+'_1" data-rid="' + value + '"><span class="user_name">'+value+'</span><span class="unread">0</span></li>';
         $('#user-list').append(html);
-      }
-    });
+			}
+		});
+    $('#user-list li[data-rid=' + currRoomId + ']').addClass('active');
 
-    // Show all users. If new users connected, only show that user
-    // for (key in users) {
-    //   var user = users[key];
-    //
-    //   var cId = user.client_id;
-    //   var userId = user.user_id;
-    //   var username = user.user_name;
-    //
-    //   if (_username == username) {
-    //     continue;
-    //   }
-    //
-    //   // If this user is not shown, show it
-    //   if (!$('#' + cId).is(':visible')) {
-    //     var html = '<li class="row-user" id="' + cId + '" data-rid="' + userId + '"><img src="/images/profile.jpg" class="img-circle"><span class="user_name">' + username + '</span><span class="unread">0</span></li>';
-    //
-    //     $('#user-list').append(html);
-    //   }
-    // }
+    if(currRoomId == MAIN_ROOM){
+      $('#joinroom').hide();
+      $('#leaveroom').hide();
+      $('#pause').hide();
+      $('#resume').hide();
+    }
     // Display message history
-    $('#joinroom').hide();
-    $('#leaveroom').hide();
-    $('#pause').hide();
-    $('#resume').hide();
-    socket.emit('load_message', _clientId,_userId, MAIN_ROOM);
+    socket.emit('load_message', _clientId,_userId, currRoomId);
   });
 
   socket.on('updateroom',function(_rooms){
@@ -309,8 +276,6 @@ $(window).load(function() {
 
   // Remove users from data
   socket.on('remove_user', function (_clientId, _users) {
-    users = _users;
-
       // Remove from channel
       $('#' + _clientId).remove();
     });
@@ -351,7 +316,7 @@ $(window).load(function() {
   });
 
   /**
-  * User interaction. Active private chat for user clicked
+  * User interaction. Active chat room for user clicked
   */
 
   var click_roomId;
@@ -363,7 +328,6 @@ $(window).load(function() {
     click_roomId = $(this).attr('data-rid');
     click_clientId = $(this).attr('id'); // Client ID of the socket connected
     var roomTitle = $(this).find('.user_name').text();
-    //console.log(roomId,_clientId,roomTitle);
     $('.room-title').text(roomTitle);
 
     $('#user-list li').removeClass('active');
@@ -377,24 +341,11 @@ $(window).load(function() {
 
     socket.emit('load_message',click_clientId,_userId,click_roomId);
 
-    // if ($('#' + activeRoom).length == 0) {
-    //   currRoomId = activeRoom;
-    //     // Change room for private chat
-    // //    socket.emit('subscribe', _userId, _clientId, roomId);
-    // } else {
-    //   // Only active current private chat
-    //   currRoomId = activeRoom;
-    //
-    //   // Load messages for this room
-    // //  socket.emit('load_message', _clientId, currRoomId);
-    //   $('#active_room').text(currRoomId);
-    // }
-     $('#message').focus();
+    $('#message').focus();
   });
 
   $('#newroom').click(function(){
     var roomname = $('#newroomname').val().trim();
-    //console.log(roomname);
     if(roomname != ''){
       socket.emit('addroom',roomname,_username);
       $('#newroomname').val('');
@@ -404,7 +355,6 @@ $(window).load(function() {
   });
 
   $('#joinroom').click(function(){
-    //$('#joinroom').hide();
     $('#send').prop('disabled', false);
     $('#message').prop('disabled', false);
     socket.emit('subscribe', _userId, click_clientId, click_roomId);
