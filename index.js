@@ -13,10 +13,12 @@ var autoIncrement = require('mongoose-auto-increment');
 var functions = require("./public/js/functions.js");
 
 var url = 'mongodb://localhost:27017/chat';
+var url2 = 'mongodb://139.59.234.58:27017/chat'
 var Schema = mongoose.Schema;
 var connection = mongoose.createConnection(url);
+var connection2 = mongoose.createConnection(url2);
 autoIncrement.initialize(connection);
-
+autoIncrement.initialize(connection2);
 // Defining model for mongodb
 var userSchema = new Schema({
   user_id: Number,
@@ -106,6 +108,9 @@ roomSchema.plugin(autoIncrement.plugin, {
 var User = connection.model('User', userSchema);
 var Message = connection.model('Message', messageSchema);
 var Room = connection.model('Room',roomSchema);
+var User2 = connection2.model('User', userSchema);
+var Message2 = connection2.model('Message', messageSchema);
+var Room2 = connection2.model('Room',roomSchema);
 
 var app = express();
 var http = require('http');
@@ -213,11 +218,26 @@ io.sockets.on('connection', function (socket) {
       room_id: data.room_id,
       message: data.message
     });
+
+    var message2 = new Message2({
+      user_id: _clientUserId,
+      user_name: data.username,
+      room_id: data.room_id,
+      message: data.message
+    });
+
     message.save(function (err) {
       if (err != null) {
         console.log('There is an error saving data ' + err);
       }
     });
+
+    message2.save(function (err) {
+      if (err != null) {
+        console.log('There is an error saving data ' + err);
+      }
+    });
+
     io.sockets.in(data.room_id).emit('message', _clientUserId, _clientId, data);
   });
 
@@ -243,11 +263,26 @@ io.sockets.on('connection', function (socket) {
         joined_at: currentDate
       });
 
+      var newroom2 = new Room2({
+        room_name: room_id,
+        user: _clientUserId,
+        type: "joined",
+        prev_joined_at: currentDate,
+        joined_at: currentDate
+      });
+
       newroom.save(function(err){
         if(err != null){
           console.log('There is an error creating room' + err);
         }
       });
+
+      newroom2.save(function(err){
+        if(err != null){
+          console.log('There is an error creating room' + err);
+        }
+      });
+
 
       console.log("Current Room List : " + rooms);
     }
@@ -321,6 +356,12 @@ io.sockets.on('connection', function (socket) {
           password: data.password
         });
 
+        var newUser2 = new User2({
+          username: data.username,
+          password: data.password
+        });
+
+
         // Save user to database
         newUser.save(function (err) {
           console.log(err);
@@ -342,6 +383,11 @@ io.sockets.on('connection', function (socket) {
       } else {
         socket.emit('exception', {message: 'This user is already registered'});
       }
+
+      newUser2.save(function (err) {
+        console.log(err);
+      });
+      
     });
   });
 
