@@ -387,7 +387,7 @@ io.sockets.on('connection', function (socket) {
       newUser2.save(function (err) {
         console.log(err);
       });
-      
+
     });
   });
 
@@ -408,7 +408,7 @@ io.sockets.on('connection', function (socket) {
             userSockets[_clientId] = socket;
 
             // Add new user to channel
-            io.sockets.emit('show_user', user.user_id, _clientId, users,rooms);
+            socket.emit('show_user', user.user_id, _clientId, users,rooms);
           }
         });
       }
